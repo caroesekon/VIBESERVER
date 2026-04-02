@@ -23,6 +23,13 @@ const { initSocket } = require('./socket');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const { limiter, authLimiter } = require('./middleware/rateLimit');
 
+// Initialize express app
+const app = express();
+const server = http.createServer(app);
+
+// Trust proxy - Required for rate limiting behind reverse proxy (Nginx/Cloudflare)
+app.set('trust proxy', 1);
+
 // Only show feature flags in development
 if (process.env.NODE_ENV === 'development') {
   console.log(chalk.blue(`
@@ -71,9 +78,6 @@ if (config.useEmail) {
   initTransporter = () => null;
 }
 
-const app = express();
-const server = http.createServer(app);
-
 // CORS
 const allowedOrigins = config.allowedOrigins;
 app.use(cors({
@@ -99,11 +103,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Logging - only log errors in production, use tiny in development
+// Logging - only log errors in production
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('tiny'));
 } else {
-  // In production, only log errors (status >= 400)
   app.use(morgan('combined', {
     skip: (req, res) => res.statusCode < 400
   }));
@@ -194,7 +197,7 @@ const startServer = async () => {
   try {
     await connectDB();
     
-    // Only show DB connection log
+    // Enhanced connection log
     const conn = mongoose.connection;
     const dbHost = conn.host;
     const dbName = conn.name;
@@ -219,7 +222,7 @@ const startServer = async () => {
       console.log(chalk.cyan(`
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║                         🚀     VIBE SERVER     🚀                             ║
-║  Port: ${PORT}  |  Environment: ${config.nodeEnv}  |  API: http://localhost:${PORT}/api ║
+║  Port: ${PORT}  |  Environment: ${config.nodeEnv}  |  API: https://vibeserver.pxxl.click/api ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
       `));
     });
